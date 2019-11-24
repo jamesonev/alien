@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type city struct {
 	name string
@@ -57,7 +60,13 @@ func printCity(c *city) {
 	}
 	fmt.Println()
 }
+func printAtlas(atlas map[string]*city) {
+	for k := range atlas {
+		printCity(atlas[k])
+	}
+}
 
+// addDirection makes the assumption that if Foo.north is Bar, then Bar.south should be Foo
 func addDirection(atlas map[string]*city, src, dest, direction string) {
 	sourceCity, exists := atlas[src]
 	if !exists {
@@ -69,13 +78,16 @@ func addDirection(atlas map[string]*city, src, dest, direction string) {
 		atlas[dest] = newCity(dest)
 		destCity = atlas[dest]
 	}
-	if direction == "north" {
+	//make the string lowercase and only compare against the first letter to handle multiple
+	//ways of expressing the same direction: "north", "North", "N", etc
+	direction = strings.ToLower(direction)
+	if strings.HasPrefix(direction, "n") {
 		setNorth(sourceCity, destCity)
-	} else if direction == "south" {
+	} else if strings.HasPrefix(direction, "s") {
 		setSouth(sourceCity, destCity)
-	} else if direction == "east" {
+	} else if strings.HasPrefix(direction, "e") {
 		setEast(sourceCity, destCity)
-	} else if direction == "west" {
+	} else if strings.HasPrefix(direction, "w") {
 		setWest(sourceCity, destCity)
 	}
 
@@ -83,8 +95,8 @@ func addDirection(atlas map[string]*city, src, dest, direction string) {
 
 func main() {
 	var atlas = make(map[string]*city)
-	// atlas["Foo"] = newCity("Foo")
-	// atlas["Bar"] = newCity("Bar")
 	addDirection(atlas, "Foo", "Bar", "north")
-	printCity(atlas["Foo"])
+	addDirection(atlas, "Boo", "Bar", "east")
+	addDirection(atlas, "Foo", "Boo", "west")
+	printAtlas(atlas)
 }
