@@ -22,6 +22,32 @@ func newCity(name string) *City {
 	return &new
 }
 
+//this function randomly picks a direction and then returns the first valid city pointer it finds
+func getNeighbor(city *City) *City {
+	index := rand.Intn(4)
+	for i := 0; i < 4; i++ {
+		switch index + i%4 {
+		case 0:
+			if city.n != nil {
+				return city.n
+			}
+		case 1:
+			if city.s != nil {
+				return city.s
+			}
+		case 2:
+			if city.e != nil {
+				return city.e
+			}
+		case 3:
+			if city.w != nil {
+				return city.w
+			}
+		}
+	}
+	return nil
+}
+
 //these helpers will keep our atlas in sync but will only be available through SetDirection()
 func setNorth(src, dest *City) {
 	src.n = dest
@@ -100,10 +126,36 @@ func addDirection(atlas map[string]*City, src, dest, direction string) {
 
 }
 
+// this function sets all direction pointers to nil. It also follows all those pointers
+// to set the backlinks to be nil
+func destroyCity(city *City) {
+	if city.n != nil {
+		north := city.n
+		north.s = nil
+		city.n = nil
+	}
+	if city.s != nil {
+		south := city.s
+		south.n = nil
+		city.s = nil
+	}
+	if city.e != nil {
+		east := city.e
+		east.w = nil
+		city.e = nil
+	}
+	if city.w != nil {
+		west := city.w
+		west.e = nil
+		city.w = nil
+	}
+}
+
 func parseFile(fileName string) map[string]*City {
 	var atlas = make(map[string]*City)
 	var err error
 	file, err := os.Open(fileName)
+	defer file.Close()
 	if err != nil {
 		panic(err)
 	}
@@ -113,12 +165,19 @@ func parseFile(fileName string) map[string]*City {
 		line := scanner.Text()
 		fields := strings.Fields(line)
 		currentCity := fields[0]
-		directions := fields[1:]
-		for _, direction := range directions {
-			pair := strings.Split(direction, "=")
-			direction = pair[0]
-			city := pair[1]
-			addDirection(atlas, currentCity, city, direction)
+		//check if we have a direction to add
+		if len(fields) > 1 {
+			directions := fields[1:]
+			for _, direction := range directions {
+				fmt.Println(currentCity)
+				pair := strings.Split(direction, "=")
+				direction = pair[0]
+				city := pair[1]
+				addDirection(atlas, currentCity, city, direction)
+			}
+		} else {
+			//TODO: add handling for the case where a city doesn't have any directions
+			fmt.Println("Error: city", currentCity, "has no cities associated with it")
 		}
 		success = scanner.Scan()
 	}
@@ -138,7 +197,31 @@ func newWarzone(city *City) *Warzone {
 	new := Warzone{city: city, occupiedBy: -1}
 	return &new
 }
-
+func alienArrivesInCity(index, alien int, battle []*Warzone, atlas map[string]*City) bool {
+	wasDestroyed := false
+	index = index % len(battle)
+	current := battle[index]
+	//if there's no one in the city, put this alien there
+	if current != nil && current.city != nil {
+		if current.occupiedBy == -1 {
+			current.occupiedBy = alien
+		} else if current.occupiedBy != alien { //an alien can't arrive in the same city it is in
+			// an alien is already here so they have a fight
+			fmt.Print("Oh no! ", current.city.name, " was destroyed by alien ")
+			fmt.Println(current.occupiedBy, "and alien", alien, "!")
+			//remove links and backlinks
+			destroyCity(current.city)
+			//remove form our atlas
+			delete(atlas, current.city.name)
+			//remove other references to mark for garbage collection
+			current.occupiedBy = -1
+			current.city = nil
+			battle[index] = nil
+			wasDestroyed = true
+		}
+	}
+	return wasDestroyed
+}
 func main() {
 	argv := os.Args
 	fileName := "input.txt"
@@ -154,26 +237,51 @@ func main() {
 	}
 	atlas := parseFile(fileName)
 	printAtlas(atlas)
-
+	fmt.Println("here's the aftermath")
 	// here's where the war starts
 	//'battle' is a slice which holds pointers to warzones. initially, we
-	//
 	battleSize := len(atlas)
 	battle := make([]*Warzone, battleSize)
+	lookup := make(map[string]int)
+	i := 0
 	for k := range atlas {
-		battle = append(battle, newWarzone(atlas[k]))
+		battle[i] = newWarzone(atlas[k])
+		lookup[atlas[k].name] = i
+		i++
 	}
+	//drop the aliens into random cities
 	for i := 0; i < numAliens; i++ {
-		index := rand.Intn(battleSize)
-		current := battle[index]
-		//if there's no one in the city, put this alien there
-		if current.occupiedBy == -1 {
-			current.occupiedBy = i
-		} else {
-			// an alien is already here so they have a fight
-			fmt.Print("Oh no!", current.city.name, "was destroyed by alien")
-			fmt.Println(current.occupiedBy, "and alien", i, "!")
+		// we need to keep track of how many aliens are alive so we know if we can exit early
+		if alienArrivesInCity(rand.Int(), i, battle, atlas) == true {
+			numAliens -= 2
+			battleSize--
+		}
+	}
+	// from the spec, simulate 10000 moves per alien
+	for i := 0; i < 10000; i++ {
+		if numAliens == 0 {
+			fmt.Println("All the aliens are dead!")
+			break
+		}
+		for j := 0; j < battleSize; j++ {
+			//iterate over the battle, and move each alien we find
+			current := battle[j]
+			//find an alien
+			if current != nil && current.occupiedBy != -1 {
+				alien := current.occupiedBy
+				//get a city for it to move into
+				neighbor := getNeighbor(current.city)
+				//simulate it arriving in that city
+				if neighbor != nil {
+					if alienArrivesInCity(lookup[neighbor.name], alien, battle, atlas) {
+						numAliens -= 2
+						battleSize--
+					}
+				}
+
+			}
 		}
 	}
 
+	printAtlas(atlas)
 }
