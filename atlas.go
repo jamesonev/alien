@@ -47,7 +47,8 @@ func getNeighbor(city *City) *City {
 	return nil
 }
 
-//these helpers will keep our atlas in sync but will only be available through SetDirection()
+// these are helpers for setDirection(). Because ensuring that cities have correct complementary pointers
+// is so important, I built all these instead of setting by hand
 func setNorth(src, dest *City) {
 	src.n = dest
 	if dest != nil {
@@ -73,6 +74,7 @@ func setWest(src, dest *City) {
 	}
 }
 
+// this just prints cities in the specified format
 func printCity(c *City) {
 	fmt.Print(c.name)
 	if c.n != nil {
@@ -97,6 +99,7 @@ func printAtlas(atlas map[string]*City) {
 
 // addDirection makes the assumption that if Foo.north is Bar, then Bar.south should be Foo
 func addDirection(atlas map[string]*City, src, dest, direction string) {
+	// we begin by checking if the src and dest cities exist, and create them if they don't
 	sourceCity, exists := atlas[src]
 	if !exists {
 		atlas[src] = newCity(src)
@@ -127,7 +130,7 @@ func addDirection(atlas map[string]*City, src, dest, direction string) {
 
 // this function sets all direction pointers to nil. It also follows all those pointers
 // to set the backlinks to be nil
-func destroyCity(city *City) {
+func removeLinks(city *City) {
 	if city.n != nil {
 		north := city.n
 		north.s = nil
@@ -150,6 +153,8 @@ func destroyCity(city *City) {
 	}
 }
 
+// parsefile takes the input filename and makes a map of the different cities
+//
 func parseFile(fileName string) map[string]*City {
 	var atlas = make(map[string]*City)
 	var err error
@@ -168,7 +173,6 @@ func parseFile(fileName string) map[string]*City {
 		if len(fields) > 1 {
 			directions := fields[1:]
 			for _, direction := range directions {
-				fmt.Println(currentCity)
 				pair := strings.Split(direction, "=")
 				direction = pair[0]
 				city := pair[1]
