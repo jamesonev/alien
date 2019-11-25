@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -127,16 +129,51 @@ func parseFile(fileName string) map[string]*City {
 	return atlas
 }
 
+type Warzone struct {
+	city       *City
+	occupiedBy int
+}
+
+func newWarzone(city *City) *Warzone {
+	new := Warzone{city: city, occupiedBy: -1}
+	return &new
+}
+
 func main() {
 	argv := os.Args
-	if len(argv) != 3 {
-		panic("must provide 2 command line args, numAliens and inputfile")
+	fileName := "input.txt"
+	if len(argv) < 2 {
+		panic("must provide 1 command line arg, numAliens. input file optional")
 	}
-	// numAliens, err := strconv.Atoi(argv[1])
-	// if err != nil {
-	// 	panic(err)
-	// }
-	fileName := strings.TrimSpace(argv[2])
+	if len(argv) == 3 {
+		fileName = strings.TrimSpace(argv[2])
+	}
+	numAliens, err := strconv.Atoi(argv[1])
+	if err != nil {
+		panic(err)
+	}
 	atlas := parseFile(fileName)
 	printAtlas(atlas)
+
+	// here's where the war starts
+	//'battle' is a slice which holds pointers to warzones. initially, we
+	//
+	battleSize := len(atlas)
+	battle := make([]*Warzone, battleSize)
+	for k := range atlas {
+		battle = append(battle, newWarzone(atlas[k]))
+	}
+	for i := 0; i < numAliens; i++ {
+		index := rand.Intn(battleSize)
+		current := battle[index]
+		//if there's no one in the city, put this alien there
+		if current.occupiedBy == -1 {
+			current.occupiedBy = i
+		} else {
+			// an alien is already here so they have a fight
+			fmt.Print("Oh no!", current.city.name, "was destroyed by alien")
+			fmt.Println(current.occupiedBy, "and alien", i, "!")
+		}
+	}
+
 }
