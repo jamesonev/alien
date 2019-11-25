@@ -99,7 +99,7 @@ func Attack() {
 	}
 	aliensAlive := numAliens
 	//drop the aliens into random cities
-	for i := 0; i <= numAliens; i++ {
+	for i := 0; i < numAliens; i++ {
 		// we need to keep track of how many aliens are alive so we know if we can exit early
 		if alienArrivesInCity(rand.Int(), i, battle, atlas) == true {
 			aliensAlive -= 2
@@ -109,7 +109,8 @@ func Attack() {
 	for i := 0; i < 10000; i++ {
 		if aliensAlive == 0 {
 			fmt.Println("All the aliens are dead!")
-			break
+			printAtlas(atlas)
+			return
 		}
 		for j := 0; j < battleSize; j++ {
 			//iterate over the battle, and move each alien we find
@@ -121,7 +122,6 @@ func Attack() {
 				neighbor := getNeighbor(current.city)
 				//simulate it arriving in that city
 				if neighbor != nil {
-					fmt.Println("moving alien", alien, "from", current.city.name, "to", neighbor.name)
 					if alienArrivesInCity(lookup[neighbor.name], alien, battle, atlas) {
 						aliensAlive -= 2
 					}
